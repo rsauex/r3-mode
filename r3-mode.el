@@ -184,12 +184,30 @@ Currently, that's the REPL prompt '^>> '"
     st)
   "Syntax table used in `r3-mode' buffers.")
 
+(defun r3-last-brace-p (start end)
+  "Return non-nil when a closing brace at position END closes the string starting at position START."
+  (save-excursion
+    (let ((level 0)
+          (pos (1+ start)))
+      (while (< pos end)
+        (cond
+         ((eq ?^ (char-after pos))
+          (cl-incf pos))
+         ((eq ?{ (char-after pos))
+          (cl-incf level))
+         ((eq ?} (char-after pos))
+          (cl-decf level)))
+        (cl-incf pos))
+      (= 0 level))))
+
 (defconst r3-syntax-propertize
   (syntax-propertize-rules
    ("{" (0 (unless (nth 8 (save-excursion (syntax-ppss (match-beginning 0))))
              (string-to-syntax "|"))))
-   ("}" (0 (when (eq t (nth 3 (save-excursion (syntax-ppss (match-beginning 0)))))
-             (string-to-syntax "|"))))))
+   ("}" (0 (let ((ppss (save-excursion (syntax-ppss (match-beginning 0)))))
+             (when (and (eq t (nth 3 ppss))
+                        (r3-last-brace-p (nth 8 ppss) (match-beginning 0)))
+               (string-to-syntax "|")))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Highlighting
@@ -271,23 +289,26 @@ Currently, that's the REPL prompt '^>> '"
    '("^[^ \n\r\t]+:" . font-lock-function-name-face)
    '("^;;;.*?;;;" (0 'font-lock-function-name-face prepend) (0 'underline prepend))))
 
+;; TODO: Arguments and refinements can have a docstring too
 (defun r3-docstring-p (state)
   "Return non-nil if STATE is on docstring."
   (let ((startpos (nth 8 state))
         (listbeg (nth 1 state)))
-    (save-excursion
-      (goto-char listbeg)
-      (condition-case nil
-          (progn
-            (backward-sexp)
-            (let ((function-name (thing-at-point 'symbol)))
-              (when (or (string= function-name "func")
-                        (string= function-name "funct"))
-                (goto-char listbeg)
-                (forward-char 1)
-                (forward-comment (point-max))
-                (= (point) startpos))))
-        (error nil)))))
+    (when listbeg
+      (save-excursion
+        (goto-char listbeg)
+        (condition-case nil
+            (progn
+              (backward-sexp)
+              (let ((function-name (thing-at-point 'symbol)))
+                (when (or (string= function-name "func")
+                          (string= function-name "funct")
+                          (string= function-name "function"))
+                  (goto-char listbeg)
+                  (forward-char 1)
+                  (forward-comment (point-max))
+                  (= (point) startpos))))
+          (error nil))))))
 
 (defun r3-font-lock-syntactic-face-function (state)
   "Return syntactic face given STATE."

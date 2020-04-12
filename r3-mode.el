@@ -260,7 +260,7 @@ Currently, that's the REPL prompt '^>> '"
   (: (+ r3-non-delim) "@" (+ r3-non-delim)))
 
 (defun r3-highlight-regex (key)
-  (concat "\\_<" (regexp-opt (gethash key r3-highlight-symbols)) "\\_>"))
+  (rx-to-string `(: symbol-start (regexp ,(regexp-opt (gethash key r3-highlight-symbols))) (* "/" r3-word) symbol-end)))
 
 (defvar r3-font-lock-keywords
   (list

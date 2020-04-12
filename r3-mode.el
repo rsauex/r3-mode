@@ -159,10 +159,10 @@ Currently, that's the REPL prompt '^>> '"
     (modify-syntax-entry ?\= "_   " st)
     (modify-syntax-entry ?\_ "_   " st)
     (modify-syntax-entry ?\/ "_   " st)
+    (modify-syntax-entry ?\' "_   " st)
     
     ;; Expression suffixes
     (modify-syntax-entry ?\: "'   " st)
-    (modify-syntax-entry ?\' "'   " st)
     (modify-syntax-entry ?\# "'   " st)
     (modify-syntax-entry ?\% "'   " st)
     
@@ -202,6 +202,13 @@ Currently, that's the REPL prompt '^>> '"
 
 (defconst r3-syntax-propertize
   (syntax-propertize-rules
+   ("'" (0 (let ((before-char (char-before (match-beginning 0))))
+             (if (or (null before-char)
+                     (let ((before-char-syntax (char-syntax before-char)))
+                       (not (or (eq ?w before-char-syntax)
+                                (eq ?_ before-char-syntax)))))
+                 (string-to-syntax "'")
+               (string-to-syntax "_")))))
    ("{" (0 (unless (nth 8 (save-excursion (syntax-ppss (match-beginning 0))))
              (string-to-syntax "|"))))
    ("}" (0 (let ((ppss (save-excursion (syntax-ppss (match-beginning 0)))))
@@ -270,7 +277,7 @@ Currently, that's the REPL prompt '^>> '"
      (2 'font-lock-function-name-face))
 
    ;; Words
-   `(,(rx (: "'" r3-word symbol-end)) . font-lock-variable-name-face) ;;; quoted word
+   `(,(rx (: "'" symbol-start r3-word symbol-end)) . font-lock-variable-name-face) ;;; quoted word
    `(,(rx (: ":" r3-word symbol-end)) . font-lock-variable-name-face) ;;; get word
    `(,(rx (: symbol-start r3-word ":")) . font-lock-function-name-face) ;;; set word
    `(,(rx (: symbol-start r3-word "!" symbol-end)) . font-lock-type-face) ;;; type
